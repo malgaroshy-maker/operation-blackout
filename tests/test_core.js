@@ -3123,6 +3123,23 @@ test('spatial audio distance attenuation scales quadratically to zero at max dis
   assert.strictEqual(CORE.spatialAudioVolume(55), 0);
 });
 
+test('spatialAudioFilter muffles occluded sources and rolls off highs with distance', () => {
+  // close and in the open: no filter, full level
+  assert.deepStrictEqual(CORE.spatialAudioFilter(2, 55, false), { gain: 1, cutoff: 0 });
+  // further away the cutoff falls, monotonically, to the far value at max range
+  const mid = CORE.spatialAudioFilter(25, 55, false).cutoff;
+  const far = CORE.spatialAudioFilter(55, 55, false).cutoff;
+  assert.ok(mid > far && mid < 16000);
+  assert.ok(Math.abs(far - 4500) < 1e-6);
+  assert.strictEqual(CORE.spatialAudioFilter(500, 55, false).cutoff, far, 'clamped past max range');
+  // behind a wall: heavy low-pass and quieter, regardless of distance
+  const occ = CORE.spatialAudioFilter(3, 55, true);
+  assert.strictEqual(occ.cutoff, CORE.OCCLUDED_CUTOFF);
+  assert.ok(occ.gain < 1 && occ.gain > 0.3);
+  // junk input falls back to the near, unfiltered case
+  assert.deepStrictEqual(CORE.spatialAudioFilter(NaN, NaN, false), { gain: 1, cutoff: 0 });
+});
+
 test('spatialAudioParams composes distance, pan, volume and audibility flag', () => {
   // Nearby sound to the right
   const nearRight = CORE.spatialAudioParams(10, 0, 0);

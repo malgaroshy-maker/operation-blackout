@@ -152,8 +152,8 @@ force an objective wave and the extraction.
 
 **Goal:** make fights readable and enemies smarter.
 
-- **Positional audio:** a panner per sound with distance falloff and an occlusion
-  low-pass when there is no LOS. Footsteps for enemies within 12 m.
+- ✅ **Positional audio** (done): panning, distance falloff and enemy footsteps were
+  already in; sounds behind walls are now muffled, and distant ones lose their highs.
 - ✅ **Grenade warning** (done): an icon and arrow for live grenades within the blast radius.
 - ✅ **Suppression** (done): near misses give a whizz past one ear, a grey arc toward
   the shooter, and edge darkening and blur that build with sustained fire.

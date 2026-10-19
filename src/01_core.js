@@ -541,6 +541,26 @@ const CORE = (function () {
     return { dist: dist, pan: pan, vol: vol, audible: true };
   }
 
+  // Occlusion and air absorption. A shot behind a wall used to sound exactly like
+  // one in the open, so hearing someone was no help in finding them. Blocked
+  // sources lose most of their top end and some level; open ones roll off highs
+  // gently with distance. A cutoff of 0 means "no filter needed".
+  const OCCLUDED_GAIN = 0.55;
+  const OCCLUDED_CUTOFF = 700;
+  const AIR_CUTOFF_NEAR = 18000;
+  const AIR_CUTOFF_FAR = 4500;
+  const AIR_FILTER_ABOVE = 16000;
+
+  function spatialAudioFilter(dist, maxDist, blocked) {
+    const maxD = (typeof maxDist === 'number' && isFinite(maxDist) && maxDist > 0) ? maxDist : SPATIAL_AUDIO_MAX_DIST;
+    const d = (typeof dist === 'number' && isFinite(dist) && dist > 0) ? Math.min(dist, maxD) : 0;
+    if (blocked) return { gain: OCCLUDED_GAIN, cutoff: OCCLUDED_CUTOFF };
+    const t = d / maxD;
+    // geometric interpolation: equal steps in pitch, not in Hz
+    const cutoff = AIR_CUTOFF_NEAR * Math.pow(AIR_CUTOFF_FAR / AIR_CUTOFF_NEAR, t);
+    return { gain: 1, cutoff: cutoff < AIR_FILTER_ABOVE ? cutoff : 0 };
+  }
+
   const SPATIAL_EXPLOSION_MAX_DIST = 85;
 
   function spatialExplosionParams(dx, dz, playerYaw) {
@@ -4554,6 +4574,8 @@ const CORE = (function () {
     spatialAudioPan: spatialAudioPan,
     spatialAudioVolume: spatialAudioVolume,
     spatialAudioParams: spatialAudioParams,
+    spatialAudioFilter: spatialAudioFilter,
+    OCCLUDED_CUTOFF: OCCLUDED_CUTOFF,
     JOYSTICK_SPRINT_FORWARD: JOYSTICK_SPRINT_FORWARD,
     JOYSTICK_SPRINT_MAGNITUDE: JOYSTICK_SPRINT_MAGNITUDE,
     isAutoSprint: isAutoSprint,

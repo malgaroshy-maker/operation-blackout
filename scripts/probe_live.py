@@ -360,6 +360,34 @@ def main() -> int:
         checks.append(("near-misses-build-suppression", sup["peak"] > 0.9 and sup["vig"] > 0.5 and sup["arcs"] >= 1))
         checks.append(("suppression-bleeds-off", sup["after"] == 0 and sup["vigAfter"] == 0))
 
+        # 8d) Occlusion: a sound with a wall between it and the player is played
+        #     through a heavy low-pass; the same sound in the open is not.
+        occ = page.evaluate("""() => {
+            const ctx = audioCtx();
+            if (!ctx) return { skipped: true };
+            const box = colliders.find(function (c) {
+                return c.max.y > 3 && c.min.y < 0.5 && (c.max.x - c.min.x) > 3 && (c.max.z - c.min.z) > 0.15;
+            });
+            if (!box) return { skipped: true };
+            const made = [];
+            const orig = ctx.createBiquadFilter;
+            ctx.createBiquadFilter = function () { const f = orig.call(ctx); made.push(f); return f; };
+            const cx = (box.min.x + box.max.x) / 2;
+            const saved = player.pos.clone();
+            player.dead = false;
+            player.pos.set(cx, 1.6, box.max.z + 2.5);
+            playSound3D('eshot', cx, 0.2, box.min.z - 2.5);
+            const behindWall = made.length ? made[made.length - 1].frequency.value : 0;
+            const n = made.length;
+            player.pos.set(cx, 1.6, box.max.z + 2.5);
+            playSound3D('eshot', cx, 0.2, box.max.z + 4.0);
+            const openAdded = made.length - n;
+            ctx.createBiquadFilter = orig;
+            player.pos.copy(saved);
+            return { skipped: false, behindWall: behindWall, openAdded: openAdded };
+        }""")
+        checks.append(("occluded-sounds-are-muffled", occ.get("skipped") or (0 < occ["behindWall"] <= 800 and occ["openAdded"] == 0)))
+
         # 9) No GPU geometry growth across sustained combat. ROB-04 leaked one
         #    geometry per grenade for the life of the session; this is the guard.
         leak = page.evaluate("""() => {

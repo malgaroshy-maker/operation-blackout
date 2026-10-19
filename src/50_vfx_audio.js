@@ -558,18 +558,32 @@ function playSound3D(name, x, y, z, maxDist) {
   const dx = x - player.pos.x, dz = z - player.pos.z;
   const spatial = CORE.spatialAudioParams(dx, dz, player.yaw, maxDist);
   if (!spatial.audible) return;
+  // Muffle what a wall stands between (ear to a point a little above the source,
+  // so ground-level sounds do not clip the floor) and dull distant highs.
+  const blocked = spatial.dist > 1.5 && CORE.segmentBlocked(player.pos.x, player.pos.y, player.pos.z,
+    x, y + 0.4, z, colliders, 0.1);
+  const filt = CORE.spatialAudioFilter(spatial.dist, maxDist, blocked);
   const g = ctx.createGain();
-  g.gain.value = spatial.vol;
-  let p = null;
+  g.gain.value = spatial.vol * filt.gain;
+  let p = null, lp = null;
+  let tail = g;
+  if (filt.cutoff > 0) {
+    lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = filt.cutoff;
+    lp.Q.value = 0.7;
+    g.connect(lp); tail = lp;
+  }
   if (ctx.createStereoPanner) {
     p = ctx.createStereoPanner();
     p.pan.value = spatial.pan;
-    g.connect(p); p.connect(audioMaster() || ctx.destination);
-  } else g.connect(audioMaster() || ctx.destination);
+    tail.connect(p); p.connect(audioMaster() || ctx.destination);
+  } else tail.connect(audioMaster() || ctx.destination);
   playSound(name, g);
   setTimeout(() => {
     try {
       if (p) p.disconnect();
+      if (lp) lp.disconnect();
       g.disconnect();
     } catch (e) {}
   }, 800);
