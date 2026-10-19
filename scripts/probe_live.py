@@ -304,6 +304,41 @@ def main() -> int:
         checks.append(("corpses-cast-no-shadows", rag["casters"] == 0))
         checks.append(("corpses-clean-up", rag["after"] == 0))
 
+        # 8b) Live-grenade warning: an enemy frag at the player's back lights a
+        #     marker pointing behind; one far away, or the player's own mid-air
+        #     throw, does not.
+        gw = page.evaluate("""() => {
+            const mk = function (x, z, fuse, fromEnemy) {
+                const m = new THREE.Mesh(grenadeGeo, grenadeMat);
+                m.position.set(x, 0.11, z);
+                return { m: m, vel: new THREE.Vector3(), fuse: fuse, blink: m, atRest: !!fromEnemy,
+                         ring: null, restFuse: fuse, fromEnemy: fromEnemy, def: fromEnemy ? undefined : CORE.LETHALS[0] };
+            };
+            const saved = liveGrenades.splice(0, liveGrenades.length);
+            player.dead = false;
+            player.pos.set(0, CFG.player.height, 24);
+            player.yaw = 0;
+            const lit = function () {
+                updateGrenadeWarnings();
+                return grenWarns.filter(function (w) { return parseFloat(w.el.style.opacity) > 0; });
+            };
+            liveGrenades.push(mk(0, 27, 0.4, true));        // 3 m behind, about to blow
+            let on = lit();
+            const behind = on.length === 1 && /rotate\(180/.test(on[0].el.style.transform);
+            const hot = on.length === 1 && on[0].el.classList.contains('hot');
+            liveGrenades.length = 0;
+            liveGrenades.push(mk(0, 60, 2, true));          // far away
+            liveGrenades.push(mk(1, 24, 2.2, false));       // own throw, still in flight
+            const quiet = lit().length;
+            liveGrenades.length = 0;
+            const cleared = lit().length;
+            Array.prototype.push.apply(liveGrenades, saved);
+            return { behind: behind, hot: hot, quiet: quiet, cleared: cleared };
+        }""")
+        checks.append(("grenade-warning-points-at-grenade", gw["behind"] and gw["hot"]))
+        checks.append(("grenade-warning-ignores-far-and-own-throw", gw["quiet"] == 0))
+        checks.append(("grenade-warning-clears", gw["cleared"] == 0))
+
         # 9) No GPU geometry growth across sustained combat. ROB-04 leaked one
         #    geometry per grenade for the life of the session; this is the guard.
         leak = page.evaluate("""() => {

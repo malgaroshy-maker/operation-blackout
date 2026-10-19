@@ -759,6 +759,7 @@ function frame(now) {
     _musicState.health = player.health;
     updateMusic(dt, _musicState);
     updateHitArcs();
+    updateGrenadeWarnings();
     updateHudHealth();
     // HUD canvases (minimap + compass) redraw at 20 Hz instead of every
     // frame: they cost significant CPU overhead on 2D contexts and the

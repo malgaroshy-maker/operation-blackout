@@ -154,7 +154,7 @@ force an objective wave and the extraction.
 
 - **Positional audio:** a panner per sound with distance falloff and an occlusion
   low-pass when there is no LOS. Footsteps for enemies within 12 m.
-- **Grenade warning:** an icon and arrow for live grenades within the blast radius.
+- ✅ **Grenade warning** (done): an icon and arrow for live grenades within the blast radius.
 - **Directional hit indicators** that also show suppression. Near misses give a whizz
   sound and a slight blur.
 - **Cover AI:** cover points are generated from colliders at nav-build time. Enemies

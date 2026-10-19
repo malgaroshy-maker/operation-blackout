@@ -150,6 +150,15 @@
   .hit-dir{position:absolute;opacity:0}
   .hit-dir .arc{position:absolute;top:-116px;left:-14px;width:28px;height:28px;border-top:4px solid #ff3020;border-radius:50%/100% 100% 0 0;transform:rotate(-45deg)}
   .hit-dir.armor .arc{border-top-color:#4fa3d8}
+  .gren-warn{position:absolute;left:0;top:0;opacity:0;pointer-events:none}
+  .gren-warn .gw{position:absolute;left:-19px;top:-172px;width:38px;height:52px;text-align:center}
+  .gren-warn .gw-arrow{width:0;height:0;margin:0 auto 2px;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:10px solid #ffb020}
+  .gren-warn .gw-icon{width:34px;height:34px;margin:0 auto;border-radius:50%;background:rgba(20,10,4,.72);border:2px solid #ffb020;box-shadow:0 0 10px rgba(255,120,20,.55);display:flex;align-items:center;justify-content:center}
+  .gren-warn .gw-icon svg{width:20px;height:20px}
+  .gren-warn.hot .gw-icon{border-color:#ff3a20;animation:gw-blink .32s infinite alternate}
+  .gren-warn.hot .gw-arrow{border-bottom-color:#ff3a20}
+  @keyframes gw-blink{to{background:rgba(160,24,8,.8)}}
+  body.reduced-motion .gren-warn.hot .gw-icon{animation:none;background:rgba(160,24,8,.8)}
   #damage-vignette{top:0;left:0;width:100%;height:100%;box-shadow:inset 0 0 120px 40px rgba(180,0,0,0);transition:box-shadow .2s;z-index:5}
   #critical-vignette{top:0;left:0;width:100%;height:100%;box-shadow:inset 0 0 90px 30px rgba(180,15,15,0);transition:opacity .25s ease-out;z-index:4;pointer-events:none;opacity:0}
   #critical-vignette.active{opacity:1;animation:crit-pulse 1.1s infinite alternate ease-in-out}
@@ -8004,6 +8013,28 @@ const CORE = (function () {
     return Math.max(0, maxOp * (1 - (age - fadeT) / dur));
   }
 
+  // ---- Live-grenade proximity warning ----
+  // The fuse blink is a few pixels on a 22 cm sphere: a frag that rolls in behind
+  // you, or under a car, gives no warning at all. The marker shows while you are
+  // inside the blast plus a margin, so stepping clear of it is the cue to stop.
+  // Only timed payloads warn: a claymore is a placed trap and thermite a fire, and
+  // the player's own throw stays quiet until it lands, or it would flash every toss.
+  const GRENADE_WARN_MARGIN = 1.3;
+  const GRENADE_WARN_FLOOR = 0.2;
+
+  function grenadeWarnUrgency(dist, radius, fuse, fullFuse, mode, ownInFlight) {
+    if (mode !== 'timed' || ownInFlight) return 0;
+    if (typeof dist !== 'number' || !isFinite(dist) || dist < 0) return 0;
+    if (typeof radius !== 'number' || !isFinite(radius) || radius <= 0) return 0;
+    if (typeof fuse !== 'number' || !isFinite(fuse) || fuse <= 0) return 0;
+    const reach = radius * GRENADE_WARN_MARGIN;
+    if (dist >= reach) return 0;
+    const full = typeof fullFuse === 'number' && isFinite(fullFuse) && fullFuse > 0 ? fullFuse : fuse;
+    const close = 1 - dist / reach;
+    const late = 1 - Math.min(1, fuse / full);
+    return Math.max(GRENADE_WARN_FLOOR, Math.min(1, Math.max(close, late)));
+  }
+
   // ---- Particle physics integration and change-driven HUD performance rules ----
   function stepParticlePhysics(x, y, z, vx, vy, vz, grav, dt, minY, out) {
     const target = out || { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, grounded: false };
@@ -9269,6 +9300,8 @@ const CORE = (function () {
     worldBearing: worldBearing,
     screenHitAngle: screenHitAngle,
     hitArcOpacity: hitArcOpacity,
+    grenadeWarnUrgency: grenadeWarnUrgency,
+    GRENADE_WARN_MARGIN: GRENADE_WARN_MARGIN,
     stepParticlePhysics: stepParticlePhysics,
     ammoHudChanged: ammoHudChanged,
     syncAmmoHudState: syncAmmoHudState,
@@ -17402,6 +17435,53 @@ function updateHitArcs() {
   }
 }
 
+// ---- Live-grenade warnings ----
+// A pooled marker per nearby live grenade, on the same ring as the hit arcs: an
+// arrow pointing at it and an upright icon that turns red and blinks once the fuse
+// or the distance makes it urgent. Rules live in CORE.grenadeWarnUrgency.
+const GREN_WARN_POOL = 4;
+const grenWarns = [];
+(function buildGrenWarns() {
+  const icon = '<svg viewBox="0 0 20 20"><rect x="8" y="1.5" width="5" height="3" rx="0.6" fill="#ffb020"/>' +
+    '<path d="M13 3h3.2v1.6H13z" fill="#ffb020"/><ellipse cx="10" cy="12" rx="5.6" ry="6.4" fill="#ffb020"/>' +
+    '<path d="M5 10.5h10M5 13.5h10" stroke="#3a2008" stroke-width="1"/></svg>';
+  for (let i = 0; i < GREN_WARN_POOL; i++) {
+    const el = document.createElement('div');
+    el.className = 'gren-warn';
+    el.innerHTML = '<div class="gw"><div class="gw-arrow"></div><div class="gw-icon">' + icon + '</div></div>';
+    hud.hitDir.appendChild(el);
+    grenWarns.push({ el: el, icon: el.querySelector('.gw-icon'), on: false });
+  }
+})();
+function updateGrenadeWarnings() {
+  let n = 0;
+  if (!player.dead) {
+    for (let i = 0; i < liveGrenades.length && n < GREN_WARN_POOL; i++) {
+      const g = liveGrenades[i];
+      const def = g.def || CORE.LETHALS[0];
+      const p = g.m.position;
+      const ownInFlight = !g.fromEnemy && !g.atRest && !g.stuck;
+      const u = CORE.grenadeWarnUrgency(player.pos.distanceTo(p), CFG.grenade.radius,
+        g.fuse, def.fuse, def.mode, ownInFlight);
+      if (u <= 0) continue;
+      const w = grenWarns[n++];
+      const deg = CORE.screenHitAngle(CORE.worldBearing(player.pos.x, player.pos.z, p.x, p.z), player.yaw);
+      w.el.style.transform = 'rotate(' + deg.toFixed(1) + 'deg)';
+      w.icon.style.transform = 'rotate(' + (-deg).toFixed(1) + 'deg) scale(' + (0.85 + 0.3 * u).toFixed(3) + ')';
+      w.el.style.opacity = (0.55 + 0.45 * u).toFixed(3);
+      w.el.classList.toggle('hot', u > 0.6);
+      w.on = true;
+    }
+  }
+  for (let i = n; i < GREN_WARN_POOL; i++) {
+    const w = grenWarns[i];
+    if (!w.on) continue;
+    w.el.style.opacity = '0';
+    w.el.classList.remove('hot');
+    w.on = false;
+  }
+}
+
 function addScore(pts, label) {
   score += pts;
   hud.scoreVal.textContent = score;
@@ -18957,6 +19037,7 @@ function frame(now) {
     _musicState.health = player.health;
     updateMusic(dt, _musicState);
     updateHitArcs();
+    updateGrenadeWarnings();
     updateHudHealth();
     // HUD canvases (minimap + compass) redraw at 20 Hz instead of every
     // frame: they cost significant CPU overhead on 2D contexts and the

@@ -286,6 +286,53 @@ function updateHitArcs() {
   }
 }
 
+// ---- Live-grenade warnings ----
+// A pooled marker per nearby live grenade, on the same ring as the hit arcs: an
+// arrow pointing at it and an upright icon that turns red and blinks once the fuse
+// or the distance makes it urgent. Rules live in CORE.grenadeWarnUrgency.
+const GREN_WARN_POOL = 4;
+const grenWarns = [];
+(function buildGrenWarns() {
+  const icon = '<svg viewBox="0 0 20 20"><rect x="8" y="1.5" width="5" height="3" rx="0.6" fill="#ffb020"/>' +
+    '<path d="M13 3h3.2v1.6H13z" fill="#ffb020"/><ellipse cx="10" cy="12" rx="5.6" ry="6.4" fill="#ffb020"/>' +
+    '<path d="M5 10.5h10M5 13.5h10" stroke="#3a2008" stroke-width="1"/></svg>';
+  for (let i = 0; i < GREN_WARN_POOL; i++) {
+    const el = document.createElement('div');
+    el.className = 'gren-warn';
+    el.innerHTML = '<div class="gw"><div class="gw-arrow"></div><div class="gw-icon">' + icon + '</div></div>';
+    hud.hitDir.appendChild(el);
+    grenWarns.push({ el: el, icon: el.querySelector('.gw-icon'), on: false });
+  }
+})();
+function updateGrenadeWarnings() {
+  let n = 0;
+  if (!player.dead) {
+    for (let i = 0; i < liveGrenades.length && n < GREN_WARN_POOL; i++) {
+      const g = liveGrenades[i];
+      const def = g.def || CORE.LETHALS[0];
+      const p = g.m.position;
+      const ownInFlight = !g.fromEnemy && !g.atRest && !g.stuck;
+      const u = CORE.grenadeWarnUrgency(player.pos.distanceTo(p), CFG.grenade.radius,
+        g.fuse, def.fuse, def.mode, ownInFlight);
+      if (u <= 0) continue;
+      const w = grenWarns[n++];
+      const deg = CORE.screenHitAngle(CORE.worldBearing(player.pos.x, player.pos.z, p.x, p.z), player.yaw);
+      w.el.style.transform = 'rotate(' + deg.toFixed(1) + 'deg)';
+      w.icon.style.transform = 'rotate(' + (-deg).toFixed(1) + 'deg) scale(' + (0.85 + 0.3 * u).toFixed(3) + ')';
+      w.el.style.opacity = (0.55 + 0.45 * u).toFixed(3);
+      w.el.classList.toggle('hot', u > 0.6);
+      w.on = true;
+    }
+  }
+  for (let i = n; i < GREN_WARN_POOL; i++) {
+    const w = grenWarns[i];
+    if (!w.on) continue;
+    w.el.style.opacity = '0';
+    w.el.classList.remove('hot');
+    w.on = false;
+  }
+}
+
 function addScore(pts, label) {
   score += pts;
   hud.scoreVal.textContent = score;

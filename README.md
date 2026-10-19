@@ -14,7 +14,7 @@ Controls (desktop): WASD move · mouse aim/fire · right-mouse ADS · Shift spri
 
 SETTINGS on the main menu or the pause screen covers mouse sensitivity, invert-Y, field of view, master volume, mute, graphics quality, reduced camera motion, high-contrast enemy markers and the FPS counter. Everything is saved in the browser, along with your best score, best wave and best accuracy.
 
-Pick a difficulty and both weapons at deploy. The SV-98 marksman rifle always rides along in slot 3 (key 3, the wheel, or SWAP on touch), with a mil-dot scope, rangefinder, breath sway you steady with Shift, a working bolt and wall penetration. Then survive 15 waves — or take **CONTINUE — ENDLESS** past the finish and see how far you get. Kills drop ammo and medkits. Multi-kill streaks award escalating bonuses (DOUBLE → RAMPAGE).
+Pick a difficulty and both weapons at deploy. The SV-98 marksman rifle always rides along in slot 3 (key 3, the wheel, or SWAP on touch), with a mil-dot scope, rangefinder, breath sway you steady with Shift, a working bolt and wall penetration. Then survive 15 waves — or take **CONTINUE — ENDLESS** past the finish and see how far you get. Kills drop ammo and medkits. A live grenade inside its blast radius shows an arrow and icon on screen pointing at it, turning red and blinking as the fuse runs down. Multi-kill streaks award escalating bonuses (DOUBLE → RAMPAGE).
 
 Your run is **checkpointed after every wave**, so closing the tab does not cost you the session — RESUME RUN appears on the main menu.
 

@@ -3945,6 +3945,27 @@ test('screenHitAngle maps world bearing and player yaw to on-screen indicator ro
   assert.strictEqual(CORE.screenHitAngle(0, NaN), 0);
 });
 
+test('grenadeWarnUrgency warns inside the blast margin for timed payloads only', () => {
+  const R = 7, reach = R * CORE.GRENADE_WARN_MARGIN;
+  // outside the margin, spent fuses and junk input stay quiet
+  assert.strictEqual(CORE.grenadeWarnUrgency(reach, R, 2, 2.2, 'timed', false), 0);
+  assert.strictEqual(CORE.grenadeWarnUrgency(1, R, 0, 2.2, 'timed', false), 0);
+  assert.strictEqual(CORE.grenadeWarnUrgency(NaN, R, 2, 2.2, 'timed', false), 0);
+  assert.strictEqual(CORE.grenadeWarnUrgency(1, R, Infinity, 2.2, 'timed', false), 0);
+  // claymores, thermite and tacticals never warn; nor does the player's own throw mid-air
+  assert.strictEqual(CORE.grenadeWarnUrgency(1, R, 1, 2.2, 'proximity', false), 0);
+  assert.strictEqual(CORE.grenadeWarnUrgency(1, R, 1, 2.2, 'burn', false), 0);
+  assert.strictEqual(CORE.grenadeWarnUrgency(1, R, 1, 2.2, 'tactical', false), 0);
+  assert.strictEqual(CORE.grenadeWarnUrgency(1, R, 1, 2.2, 'timed', true), 0);
+  // just inside the edge with a fresh fuse: shown, at the floor
+  const edge = CORE.grenadeWarnUrgency(reach - 0.01, R, 2.2, 2.2, 'timed', false);
+  assert.ok(edge > 0 && Math.abs(edge - 0.2) < 1e-9);
+  // closer and later both raise urgency, capped at 1
+  assert.ok(CORE.grenadeWarnUrgency(2, R, 2.2, 2.2, 'timed', false) > CORE.grenadeWarnUrgency(6, R, 2.2, 2.2, 'timed', false));
+  assert.ok(CORE.grenadeWarnUrgency(8, R, 0.3, 2.2, 'timed', false) > CORE.grenadeWarnUrgency(8, R, 2, 2.2, 'timed', false));
+  assert.strictEqual(CORE.grenadeWarnUrgency(0, R, 0.01, 2.2, 'timed', false), 1);
+});
+
 test('hitArcOpacity computes linear fade curve for directional hit indicators', () => {
   // At creation (age 0), full opacity (0.9)
   assert.strictEqual(CORE.hitArcOpacity(0), 0.9);
