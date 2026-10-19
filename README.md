@@ -27,11 +27,12 @@ The soundtrack is synthesised in-browser and follows the fight: a D-minor cue at
 ## Repository layout
 
 - `dist/Operation Blackout.html` — the shippable, self-contained game (all assets embedded as base64; works from `file://`)
-- `src/` — modular source: pure core logic, config/world, player, touch input, weapons, enemies/AI, VFX/audio, grenades, HUD/waves, main loop
+- `src/` — modular source: pure core logic, settings, procedural textures, config/world, player, touch input, weapons and viewmodels, procedural soldiers and ragdolls, enemies/AI, particles, VFX/audio and the adaptive score, grenades, stations and scorestreaks, HUD/waves, post-processing, main loop
 - `src/01_core.js` — engine-free gameplay rules (distances, sub-stepping, ballistics, wave scaling, AI navigation). No THREE, no DOM, so it runs unchanged in the browser build *and* under `node --test`.
 - `vendor/` — three.js **r186** + GLTFLoader, bundled to a single IIFE (MIT). See `vendor/README.md` to regenerate.
 - `scripts/build.py` — assembles head + vendor + src into the single file
 - `scripts/probe_live.py` — drives the built file in headless Chromium and probes live gameplay state
+- `ROADMAP.md` — what is being built next, milestone by milestone
 
 The `src/` tree is the readable code; the `dist/` file is what you run.
 
@@ -84,8 +85,22 @@ runs on explicitly identified devices and settings.
 
 ## Project status
 
-See [AUDIT_AND_ROADMAP.md](AUDIT_AND_ROADMAP.md) for the full findings register and the
-phased plan. Phases 0-13 are complete, plus a physics pass (ragdoll deaths, fall damage).
+**Next:** [ROADMAP.md](ROADMAP.md) is the current plan. It has six milestones: new weapons,
+game modes (TDM, FFA, Domination, Gun Game), a snowy second map, Survival objectives with a wave-15
+extraction, feel and AI, and retention.
+
+**Done since Phase 13:**
+- Procedural graphics overhaul: textures, sky, HDR post-processing and particles.
+- Detailed weapon viewmodels.
+- The SV-98 marksman rifle is always in slot 3, with scope parallax and a rangefinder.
+- Articulated soldiers with Verlet ragdolls.
+- Live-grenade warnings.
+- Near-miss suppression.
+- Sounds muffled behind walls.
+- A sequenced adaptive soundtrack.
+
+**History:** [AUDIT_AND_ROADMAP.md](AUDIT_AND_ROADMAP.md) is the original findings register
+and Phases 0-8. [COD_ROADMAP.md](COD_ROADMAP.md) covers Phases 9-13. Both are complete.
 
 ## Credits
 

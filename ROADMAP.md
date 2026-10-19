@@ -7,7 +7,7 @@ four rifles. This plan fixes that in six milestones, in build order.
 
 Each milestone is one PR. It must keep `node --test tests/test_core.js`,
 `python -m unittest tests.test_release_build` and `scripts/probe_live.py` green, and
-stay under the 2 MB build budget (currently ~1.77 MB). Everything stays procedural:
+stay under the 2 MiB build budget (currently ~1.71 MiB). Everything stays procedural:
 no new binary assets.
 
 | # | Milestone | Size | Depends on |
@@ -155,6 +155,8 @@ force an objective wave and the extraction.
 - ✅ **Positional audio** (done): panning, distance falloff and enemy footsteps were
   already in; sounds behind walls are now muffled, and distant ones lose their highs.
 - ✅ **Grenade warning** (done): an icon and arrow for live grenades within the blast radius.
+- ✅ **Adaptive soundtrack** (done, not in the original plan): the drone and per-frame
+  heartbeat were replaced by a sequenced D-minor score whose layers follow combat intensity.
 - ✅ **Suppression** (done): near misses give a whizz past one ear, a grey arc toward
   the shooter, and edge darkening and blur that build with sustained fire.
 - **Cover AI:** cover points are generated from colliders at nav-build time. Enemies

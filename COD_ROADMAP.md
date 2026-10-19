@@ -1,5 +1,7 @@
 # Operation Blackout — Review & Call of Duty Roadmap
 
+> **Historical record.** Phases 9-13 have all shipped. Current plan: [ROADMAP.md](ROADMAP.md).
+
 **Date:** 2026-09-12
 **Reviewed build:** `master` @ `8d5b902`, three.js r186, 70 node + 15 Python tests passing.
 **Status:** Phases 9-13 all shipped, plus a physics pass (ragdoll deaths, fall damage) and one player-reported bug fix.

@@ -1,5 +1,7 @@
 # Operation Blackout — Audit & Roadmap
 
+> **Historical record.** Every phase here has landed. Current plan: [ROADMAP.md](ROADMAP.md).
+
 > ## Status — Phases 0-13 complete, plus two physics passes (2026-09-12)
 >
 > **Focused frame-rate/physics slice (2026-09-15):** automatic fire now consumes every elapsed
@@ -117,6 +119,7 @@
 > heartbeat pulse driven by one intensity number. Measured response — idle 46 bpm /
 > 200 Hz cutoff, overrun 132 bpm / 1098 Hz, tension voice fading in past 25%.
 > Mute and stop both take it to exactly 0.
+> *(Superseded 2026-10: replaced by a sequenced adaptive score; see README and ROADMAP.md.)*
 >
 > Prop batching: the 48 scattered GLB props became **4 merged meshes**, taking draw
 > calls **166 → 106**. The `fireShot` monkey-patch (ENG-07) is gone.
