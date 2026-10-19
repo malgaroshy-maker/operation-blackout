@@ -4094,15 +4094,6 @@ const CORE = (function () {
   const MUSIC_FALL_RATE = 0.5;
   const MUSIC_BASE_BUS_GAIN = 0.22;
   const MUSIC_INTENSITY_BUS_SCALE = 0.5;
-  const MUSIC_TENSION_THRESHOLD = 0.25;
-  const MUSIC_TENSION_MAX_GAIN = 0.16;
-  const MUSIC_BASE_CUTOFF = 200;
-  const MUSIC_MAX_CUTOFF_SCALE = 900;
-  const MUSIC_BASE_BPM = 46;
-  const MUSIC_MAX_BPM_SCALE = 86;
-  const MUSIC_PULSE_BASE_GAIN = 0.05;
-  const MUSIC_PULSE_MAX_GAIN_SCALE = 0.5;
-  const MUSIC_PULSE_EXPONENT = 6;
 
   function stepMusicIntensity(currentIntensity, targetIntensity, dt, riseRate, fallRate) {
     const cur = (typeof currentIntensity === 'number' && isFinite(currentIntensity)) ? currentIntensity : 0;
@@ -4123,40 +4114,118 @@ const CORE = (function () {
     return vol * (MUSIC_BASE_BUS_GAIN + i * MUSIC_INTENSITY_BUS_SCALE);
   }
 
-  function musicTensionGain(intensity) {
-    const i = (typeof intensity === 'number' && isFinite(intensity)) ? Math.max(0, Math.min(1, intensity)) : 0;
-    if (i <= MUSIC_TENSION_THRESHOLD) return 0;
-    return Math.min(MUSIC_TENSION_MAX_GAIN, ((i - MUSIC_TENSION_THRESHOLD) / (1 - MUSIC_TENSION_THRESHOLD)) * MUSIC_TENSION_MAX_GAIN);
+  // ---- Adaptive score: chart, layers and patterns ----
+  // The old score was a sawtooth drone held on one chord plus a noise "heartbeat"
+  // gated per frame (which crackled at low frame rates). This is a real cue: a
+  // i-VI-iv-V progression in D minor, built in layers that enter with the fight.
+  // Calm is a pad and a distant boom; combat adds bass ostinato, drums, brass
+  // swells and finally a sixteenth-note string arpeggio. Everything here is pure
+  // data and rules; 50_vfx_audio.js turns it into scheduled notes.
+  const MUSIC_BPM = 104;
+  const MUSIC_STEPS_PER_BAR = 16;
+  const MUSIC_BARS_PER_CHORD = 2;
+  const MUSIC_CHART = [
+    { name: 'Dm', root: 38, notes: [50, 53, 57] },
+    { name: 'Bb', root: 34, notes: [46, 50, 53] },
+    { name: 'Gm', root: 31, notes: [43, 46, 50] },
+    { name: 'A',  root: 33, notes: [45, 49, 52] }    // major V: the C# pulls back home
+  ];
+  const MUSIC_PHRASE_BARS = MUSIC_CHART.length * MUSIC_BARS_PER_CHORD;
+  const MUSIC_ARP_SHAPE = [0, 1, 2, 3, 2, 1, 0, 1, 2, 3, 4, 3, 2, 1, 2, 3];
+
+  function musicClamp01(v) {
+    return (typeof v === 'number' && isFinite(v)) ? Math.max(0, Math.min(1, v)) : 0;
+  }
+  function musicSmooth(e0, e1, x) {
+    const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
+    return t * t * (3 - 2 * t);
+  }
+  function musicStepSeconds(bpm) {
+    const b = (typeof bpm === 'number' && isFinite(bpm) && bpm > 0) ? bpm : MUSIC_BPM;
+    return 60 / b / 4;
+  }
+  function midiToHz(note) {
+    return 440 * Math.pow(2, (note - 69) / 12);
+  }
+  function musicChordAt(bar) {
+    const b = (typeof bar === 'number' && isFinite(bar) && bar > 0) ? Math.floor(bar) : 0;
+    return MUSIC_CHART[Math.floor(b / MUSIC_BARS_PER_CHORD) % MUSIC_CHART.length];
+  }
+  function musicChordChanges(step) {
+    const s = (typeof step === 'number' && isFinite(step) && step > 0) ? Math.floor(step) : 0;
+    return s % (MUSIC_STEPS_PER_BAR * MUSIC_BARS_PER_CHORD) === 0;
   }
 
-  function musicFilterCutoff(intensity) {
-    const i = (typeof intensity === 'number' && isFinite(intensity)) ? Math.max(0, Math.min(1, intensity)) : 0;
-    return MUSIC_BASE_CUTOFF + i * MUSIC_MAX_CUTOFF_SCALE;
+  // Layer levels by intensity. The pad never leaves (silence between waves reads
+  // as a bug), but steps back as the rhythm section comes in.
+  function musicLayerGains(intensity) {
+    const i = musicClamp01(intensity);
+    return {
+      pad: 0.55 - 0.2 * i,
+      drums: 0.35 + 0.65 * musicSmooth(0.05, 0.5, i),
+      bass: musicSmooth(0.15, 0.45, i),
+      horn: musicSmooth(0.45, 0.8, i),
+      arp: musicSmooth(0.6, 0.95, i)
+    };
   }
 
-  function musicPulseBpm(intensity) {
-    const i = (typeof intensity === 'number' && isFinite(intensity)) ? Math.max(0, Math.min(1, intensity)) : 0;
-    return MUSIC_BASE_BPM + i * MUSIC_MAX_BPM_SCALE;
+  // Drum hits for one sixteenth step, as velocities 0..1 (0 = silent). Density is
+  // tiered so the groove changes character rather than just getting louder.
+  function musicDrumHits(step, intensity) {
+    const n = (typeof step === 'number' && isFinite(step) && step > 0) ? Math.floor(step) : 0;
+    const i = musicClamp01(intensity);
+    const s = n % MUSIC_STEPS_PER_BAR;
+    const bar = Math.floor(n / MUSIC_STEPS_PER_BAR);
+    const hits = { boom: 0, kick: 0, snare: 0, hat: 0, tom: 0 };
+    // distant taiko on the downbeat, heavier where the chord changes
+    if (s === 0) hits.boom = musicChordChanges(n) ? 0.9 : 0.55;
+    if (i < 0.15) {
+      if (s === 10) hits.boom = 0.35;
+      return hits;
+    }
+    if (s === 0 || s === 8) hits.kick = 0.9;
+    if (s % 4 === 2) hits.hat = 0.35;
+    if (i >= 0.45) {
+      if (s === 4 || s === 12) hits.snare = 0.85;
+      if (s === 7 || s === 10) hits.kick = 0.6;
+      if (s % 2 === 0) hits.hat = s % 4 === 2 ? 0.5 : 0.3;
+    }
+    if (i >= 0.75) {
+      hits.hat = Math.max(hits.hat, s % 2 ? 0.22 : 0.45);
+      if (s === 14) hits.kick = 0.55;
+      // fill into the top of the phrase
+      if (bar % MUSIC_PHRASE_BARS === MUSIC_PHRASE_BARS - 1 && s >= 12) {
+        hits.tom = 0.6 + (s - 12) * 0.1;
+        hits.snare = s === 15 ? 0.9 : 0;
+        hits.hat = 0;
+      }
+    }
+    return hits;
   }
 
-  function stepMusicPulsePhase(phase, dt, bpm) {
-    const p = (typeof phase === 'number' && isFinite(phase)) ? phase : 0;
-    const d = (typeof dt === 'number' && isFinite(dt) && dt > 0) ? dt : 0;
-    const b = (typeof bpm === 'number' && isFinite(bpm) && bpm > 0) ? bpm : MUSIC_BASE_BPM;
-    let next = p + d * (b / 60);
-    next = next - Math.floor(next);
-    return next;
+  // Bass ostinato on the chord root: a driving 3-3-2 figure, filled to straight
+  // eighths with octave jumps once the fight is at full tilt. -1 = rest.
+  function musicBassNote(step, intensity) {
+    const n = (typeof step === 'number' && isFinite(step) && step > 0) ? Math.floor(step) : 0;
+    const i = musicClamp01(intensity);
+    const s = n % MUSIC_STEPS_PER_BAR;
+    const root = musicChordAt(Math.floor(n / MUSIC_STEPS_PER_BAR)).root;
+    if (i >= 0.7) {
+      if (s % 2) return -1;
+      return (s % 4 === 2) ? root + 12 : root;
+    }
+    if (s === 0 || s === 3 || s === 6 || s === 8 || s === 11) return root;
+    if (s === 14) return root + 12;
+    return -1;
   }
 
-  function musicPulseEnvelope(phase) {
-    const p = (typeof phase === 'number' && isFinite(phase)) ? Math.max(0, Math.min(1, phase)) : 0;
-    return Math.pow(1 - p, MUSIC_PULSE_EXPONENT);
-  }
-
-  function musicPulseGain(envelope, intensity) {
-    const env = (typeof envelope === 'number' && isFinite(envelope)) ? Math.max(0, Math.min(1, envelope)) : 0;
-    const i = (typeof intensity === 'number' && isFinite(intensity)) ? Math.max(0, Math.min(1, intensity)) : 0;
-    return env * (MUSIC_PULSE_BASE_GAIN + i * MUSIC_PULSE_MAX_GAIN_SCALE);
+  // String arpeggio: chord tones climbing through two octaves, every sixteenth.
+  function musicArpNote(step) {
+    const n = (typeof step === 'number' && isFinite(step) && step > 0) ? Math.floor(step) : 0;
+    const chord = musicChordAt(Math.floor(n / MUSIC_STEPS_PER_BAR));
+    const k = MUSIC_ARP_SHAPE[n % MUSIC_ARP_SHAPE.length];
+    const tones = chord.notes.length;
+    return chord.notes[k % tones] + 12 * (1 + Math.floor(k / tones));
   }
 
   // ---- Station purchases & tactical audio cues ----
@@ -4819,23 +4888,21 @@ const CORE = (function () {
     MUSIC_FALL_RATE: MUSIC_FALL_RATE,
     MUSIC_BASE_BUS_GAIN: MUSIC_BASE_BUS_GAIN,
     MUSIC_INTENSITY_BUS_SCALE: MUSIC_INTENSITY_BUS_SCALE,
-    MUSIC_TENSION_THRESHOLD: MUSIC_TENSION_THRESHOLD,
-    MUSIC_TENSION_MAX_GAIN: MUSIC_TENSION_MAX_GAIN,
-    MUSIC_BASE_CUTOFF: MUSIC_BASE_CUTOFF,
-    MUSIC_MAX_CUTOFF_SCALE: MUSIC_MAX_CUTOFF_SCALE,
-    MUSIC_BASE_BPM: MUSIC_BASE_BPM,
-    MUSIC_MAX_BPM_SCALE: MUSIC_MAX_BPM_SCALE,
-    MUSIC_PULSE_BASE_GAIN: MUSIC_PULSE_BASE_GAIN,
-    MUSIC_PULSE_MAX_GAIN_SCALE: MUSIC_PULSE_MAX_GAIN_SCALE,
-    MUSIC_PULSE_EXPONENT: MUSIC_PULSE_EXPONENT,
+    MUSIC_BPM: MUSIC_BPM,
+    MUSIC_STEPS_PER_BAR: MUSIC_STEPS_PER_BAR,
+    MUSIC_BARS_PER_CHORD: MUSIC_BARS_PER_CHORD,
+    MUSIC_PHRASE_BARS: MUSIC_PHRASE_BARS,
+    MUSIC_CHART: MUSIC_CHART,
     stepMusicIntensity: stepMusicIntensity,
     musicBusGain: musicBusGain,
-    musicTensionGain: musicTensionGain,
-    musicFilterCutoff: musicFilterCutoff,
-    musicPulseBpm: musicPulseBpm,
-    stepMusicPulsePhase: stepMusicPulsePhase,
-    musicPulseEnvelope: musicPulseEnvelope,
-    musicPulseGain: musicPulseGain,
+    musicStepSeconds: musicStepSeconds,
+    midiToHz: midiToHz,
+    musicChordAt: musicChordAt,
+    musicChordChanges: musicChordChanges,
+    musicLayerGains: musicLayerGains,
+    musicDrumHits: musicDrumHits,
+    musicBassNote: musicBassNote,
+    musicArpNote: musicArpNote,
     stationPurchaseSound: stationPurchaseSound,
     playerDownSound: playerDownSound,
     playerReviveSound: playerReviveSound,

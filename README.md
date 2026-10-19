@@ -22,7 +22,7 @@ Hostiles escalate by *behaviour*, not just by count: they fire on the move from 
 
 New archetypes arrive across the whole curve, each announced as it shows up: **scouts** (wave 3) are fast, fragile and always flanking; **grenadiers** (wave 6) hold their distance and lob frags to deny your cover; **shielded advancers** (wave 9) carry a frontal plate that absorbs most of what you put into it — flank them, headshot them, or grenade them.
 
-The soundtrack is synthesised in-browser and follows the fight: a drone between waves, a heartbeat that climbs from 46 to 132 bpm as enemies close in and your health drops. Every one-shot is rendered to a buffer once at deploy rather than re-synthesised per trigger, so firing costs a single buffer playback.
+The soundtrack is synthesised in-browser and follows the fight: a D-minor cue at 104 bpm, sequenced on the audio clock, with layers that enter as enemies close in and your health drops. Between waves it is just a string pad and a distant taiko. Bass ostinato and drums come in as the fight builds, then brass swells, and at full intensity a sixteenth-note string arpeggio and drum fills. Every one-shot is rendered to a buffer once at deploy rather than re-synthesised per trigger, so firing costs a single buffer playback.
 
 ## Repository layout
 
