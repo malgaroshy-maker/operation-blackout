@@ -3945,6 +3945,24 @@ test('screenHitAngle maps world bearing and player yaw to on-screen indicator ro
   assert.strictEqual(CORE.screenHitAngle(0, NaN), 0);
 });
 
+test('suppression stacks per near miss, holds briefly, then bleeds off', () => {
+  let l = 0;
+  l = CORE.suppressionAdd(l);
+  assert.ok(l > 0.15 && l < 0.3, 'one stray round barely registers');
+  for (let i = 0; i < 10; i++) l = CORE.suppressionAdd(l);
+  assert.strictEqual(l, 1, 'a sustained burst caps at full suppression');
+  // inside the hold window nothing decays
+  assert.strictEqual(CORE.suppressionDecay(1, 0.1, CORE.SUPPRESS_HOLD - 0.01), 1);
+  // after it, it falls and never goes negative
+  const d = CORE.suppressionDecay(1, 0.1, CORE.SUPPRESS_HOLD + 0.01);
+  assert.ok(d < 1 && d > 0.85);
+  assert.strictEqual(CORE.suppressionDecay(0.05, 1, 5), 0);
+  // junk input is safe
+  assert.strictEqual(CORE.suppressionDecay(NaN, 0.1, 5), 0);
+  assert.strictEqual(CORE.suppressionDecay(0.5, NaN, 5), 0.5);
+  assert.ok(Math.abs(CORE.suppressionAdd(NaN) - CORE.suppressionAdd(0)) < 1e-12);
+});
+
 test('grenadeWarnUrgency warns inside the blast margin for timed payloads only', () => {
   const R = 7, reach = R * CORE.GRENADE_WARN_MARGIN;
   // outside the margin, spent fuses and junk input stay quiet

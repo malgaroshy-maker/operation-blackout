@@ -155,8 +155,8 @@ force an objective wave and the extraction.
 - **Positional audio:** a panner per sound with distance falloff and an occlusion
   low-pass when there is no LOS. Footsteps for enemies within 12 m.
 - ✅ **Grenade warning** (done): an icon and arrow for live grenades within the blast radius.
-- **Directional hit indicators** that also show suppression. Near misses give a whizz
-  sound and a slight blur.
+- ✅ **Suppression** (done): near misses give a whizz past one ear, a grey arc toward
+  the shooter, and edge darkening and blur that build with sustained fire.
 - **Cover AI:** cover points are generated from colliders at nav-build time. Enemies
   move between them, peek, fire bursts and suppress. Bots in TDM use the same system.
 - **Weather and time of day** per match: clear, dusk, night (muzzle flashes and

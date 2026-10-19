@@ -751,6 +751,22 @@ function enemyShoot(en, dist) {
           player.pos.x, player.pos.y, player.pos.z, smokeVolumes())) return;
       damagePlayer(dmg, hitDeg);
     }, Math.min(300, dist * 2.2));
+  } else {
+    // A miss still passes close: crack it past one ear and stack suppression, but
+    // only if the round could actually have reached the player.
+    const firedInRun = runId;
+    const ox = from.x, oy = from.y, oz = from.z;
+    const missDeg = dirToDeg(en);
+    const side = Math.random() < 0.5 ? -1 : 1;
+    setTimeout(function () {
+      if (runId !== firedInRun) return;
+      if (player.dead || !started || paused) return;
+      if (CORE.segmentBlocked(ox, oy, oz,
+          player.pos.x, player.pos.y, player.pos.z, colliders, 0.25)) return;
+      if (CORE.smokeBlocks(ox, oy, oz,
+          player.pos.x, player.pos.y, player.pos.z, smokeVolumes())) return;
+      noteNearMiss(missDeg, side);
+    }, Math.min(300, dist * 2.2));
   }
 }
 

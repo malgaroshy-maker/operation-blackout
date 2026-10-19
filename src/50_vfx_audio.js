@@ -418,6 +418,8 @@ const SOUND_RECIPES = {
   kill_elite:    [['noise', 0.10, 0.35, 750, 1.8], ['osc', 'sawtooth', 280, 120, 0.14, 0.22], ['osc', 'sine', 140, 35, 0.22, 0.35]],
   multikill:     [['osc', 'sine', 520, 780, 0.12, 0.20], ['osc', 'sine', 780, 1040, 0.14, 0.16], ['osc', 'triangle', 260, 520, 0.16, 0.12]],
   hurt:        [['osc', 'sawtooth', 180, 90, 0.16, 0.22], ['noise', 0.14, 0.16, 400, 0.7]],
+  // supersonic crack then a falling tail: the round passing, not the gun firing
+  whizz:       [['noise', 0.05, 0.26, 3600, 2.5], ['osc', 'sine', 2100, 620, 0.16, 0.06], ['noise', 0.14, 0.08, 1500, 1.5]],
   wave:        [['osc', 'sine', 220, 0, 0.5, 0.2], ['osc', 'sine', 330, 0, 0.5, 0.14], ['osc', 'sine', 440, 0, 0.7, 0.1]],
   death:       [['osc', 'sawtooth', 200, 30, 1.2, 0.3], ['noise', 0.8, 0.2, 200, 0.5]],
   victory:     [['osc', 'sine', 523, 0, 0.3, 0.18], ['osc', 'sine', 659, 0, 0.3, 0.18], ['osc', 'sine', 784, 0, 0.6, 0.2]],
@@ -448,7 +450,7 @@ const SOUND_RECIPES = {
 // than the old live synthesis had, since its parameters were fixed too.
 const SOUND_VARIED = {
   shot: 1, smg: 1, br: 1, eshot: 1, impact: 1, casing: 1, step: 1, estep: 1, hit: 1, sniper: 1,
-  jump: 1, land: 1, melee: 1, bounce: 1, headshot: 1, slide: 1, hurt: 1,
+  jump: 1, land: 1, melee: 1, bounce: 1, headshot: 1, slide: 1, hurt: 1, whizz: 1,
   block: 1, armor_break: 1, kill: 1, kill_headshot: 1, kill_elite: 1, multikill: 1, dry: 1, draw: 1, pin: 1, reload_out: 1, reload_in: 1,
   pickup_ammo: 1, pickup_med: 1,
   streak_uav: 1, streak_airstrike: 1, streak_sentry: 1, sentry_shot: 1, munitions: 1, munitions_resupply: 1,

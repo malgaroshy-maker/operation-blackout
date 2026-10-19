@@ -3328,6 +3328,27 @@ const CORE = (function () {
     return Math.max(0, maxOp * (1 - (age - fadeT) / dur));
   }
 
+  // ---- Suppression from near misses ----
+  // A missed enemy round used to be silent: only hits had any feedback, so being
+  // pinned down by a crowd that keeps missing read as nobody shooting at all. Each
+  // near miss stacks a little suppression; it holds briefly after the last one and
+  // then bleeds off, so a sustained burst builds and a stray shot barely registers.
+  const SUPPRESS_PER_MISS = 0.22;
+  const SUPPRESS_HOLD = 0.6;
+  const SUPPRESS_DECAY = 0.9;
+
+  function suppressionAdd(level) {
+    const l = typeof level === 'number' && isFinite(level) ? Math.max(0, level) : 0;
+    return Math.min(1, l + SUPPRESS_PER_MISS);
+  }
+
+  function suppressionDecay(level, dt, sinceLastMiss) {
+    if (typeof level !== 'number' || !isFinite(level) || level <= 0) return 0;
+    if (typeof dt !== 'number' || !isFinite(dt) || dt <= 0) return Math.min(1, level);
+    if (typeof sinceLastMiss === 'number' && sinceLastMiss < SUPPRESS_HOLD) return Math.min(1, level);
+    return Math.max(0, Math.min(1, level) - SUPPRESS_DECAY * dt);
+  }
+
   // ---- Live-grenade proximity warning ----
   // The fuse blink is a few pixels on a 22 cm sphere: a frag that rolls in behind
   // you, or under a car, gives no warning at all. The marker shows while you are
@@ -4616,6 +4637,9 @@ const CORE = (function () {
     screenHitAngle: screenHitAngle,
     hitArcOpacity: hitArcOpacity,
     grenadeWarnUrgency: grenadeWarnUrgency,
+    suppressionAdd: suppressionAdd,
+    suppressionDecay: suppressionDecay,
+    SUPPRESS_HOLD: SUPPRESS_HOLD,
     GRENADE_WARN_MARGIN: GRENADE_WARN_MARGIN,
     stepParticlePhysics: stepParticlePhysics,
     ammoHudChanged: ammoHudChanged,

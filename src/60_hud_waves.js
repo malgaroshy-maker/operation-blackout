@@ -262,11 +262,12 @@ const hitArcs = [];
   }
 })();
 let hitArcNext = 0;
-function showHitArc(screenDeg, isArmor) {
+function showHitArc(screenDeg, isArmor, isMiss) {
   const a = hitArcs[hitArcNext];
   hitArcNext = (hitArcNext + 1) % HIT_ARC_POOL;
   a.el.style.transform = 'rotate(' + screenDeg + 'deg)';
   a.el.classList.toggle('armor', !!isArmor);
+  a.el.classList.toggle('miss', !!isMiss);
   a.el.style.opacity = '0.9';
   a.t = gameT;
 }
@@ -278,12 +279,33 @@ function updateHitArcs() {
     const op = CORE.hitArcOpacity(age, HIT_ARC_LIFE, 0.6, 0.9);
     if (op <= 0) {
       a.el.style.opacity = '0';
-      a.el.classList.remove('armor');
+      a.el.classList.remove('armor', 'miss');
       a.t = -99;
     } else {
       a.el.style.opacity = op.toFixed(3);
     }
   }
+}
+
+// ---- Suppression ----
+// Near misses: a whizz panned to the side the round passed, a grey arc toward the
+// shooter, and a suppression level that darkens (and, with post-FX, blurs) the
+// screen edges. Stacking and decay rules live in CORE.suppression*.
+let suppression = 0, lastNearMissT = -99;
+const suppressVig = $id('suppress-vignette');
+function noteNearMiss(dirDeg, side) {
+  suppression = CORE.suppressionAdd(suppression);
+  lastNearMissT = gameT;
+  showHitArc(CORE.screenHitAngle(dirDeg, player.yaw), false, true);
+  // a point just beside the head, perpendicular to the view: pans hard to one ear
+  const rx = Math.cos(player.yaw) * side, rz = -Math.sin(player.yaw) * side;
+  playSound3D('whizz', player.pos.x + rx * 0.8, player.pos.y, player.pos.z + rz * 0.8);
+}
+function updateSuppression(dt) {
+  if (player.dead) suppression = 0;
+  suppression = CORE.suppressionDecay(suppression, dt, gameT - lastNearMissT);
+  const op = (suppression * 0.85).toFixed(3);
+  if (suppressVig._op !== op) { suppressVig.style.opacity = op; suppressVig._op = op; }
 }
 
 // ---- Live-grenade warnings ----

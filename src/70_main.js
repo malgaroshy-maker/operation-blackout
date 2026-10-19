@@ -29,6 +29,7 @@ function pauseGame() {
   }
   paused = true;
   if (typeof cancelGrenadeCharge === 'function') cancelGrenadeCharge();
+  suppression = 0;
   $id('pause-menu').style.display = 'flex';
   if (document.pointerLockElement) document.exitPointerLock();
 }
@@ -760,6 +761,7 @@ function frame(now) {
     updateMusic(dt, _musicState);
     updateHitArcs();
     updateGrenadeWarnings();
+    updateSuppression(dt);
     updateHudHealth();
     // HUD canvases (minimap + compass) redraw at 20 Hz instead of every
     // frame: they cost significant CPU overhead on 2D contexts and the

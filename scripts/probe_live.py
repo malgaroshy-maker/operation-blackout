@@ -339,6 +339,27 @@ def main() -> int:
         checks.append(("grenade-warning-ignores-far-and-own-throw", gw["quiet"] == 0))
         checks.append(("grenade-warning-clears", gw["cleared"] == 0))
 
+        # 8c) Near misses: each one stacks suppression, draws a grey arc and darkens
+        #     the screen edges; it bleeds off once the shooting stops.
+        sup = page.evaluate("""() => {
+            player.dead = false;
+            suppression = 0;
+            for (let i = 0; i < 5; i++) noteNearMiss(0, i % 2 ? 1 : -1);
+            const peak = suppression;
+            updateSuppression(1 / 60);
+            const vig = parseFloat(document.getElementById('suppress-vignette').style.opacity);
+            const arcs = document.querySelectorAll('.hit-dir.miss').length;
+            const t0 = gameT;
+            gameT = t0 + 5;
+            for (let i = 0; i < 180; i++) updateSuppression(1 / 60);
+            gameT = t0;
+            const after = suppression;
+            const vigAfter = parseFloat(document.getElementById('suppress-vignette').style.opacity);
+            return { peak: peak, vig: vig, arcs: arcs, after: after, vigAfter: vigAfter };
+        }""")
+        checks.append(("near-misses-build-suppression", sup["peak"] > 0.9 and sup["vig"] > 0.5 and sup["arcs"] >= 1))
+        checks.append(("suppression-bleeds-off", sup["after"] == 0 and sup["vigAfter"] == 0))
+
         # 9) No GPU geometry growth across sustained combat. ROB-04 leaked one
         #    geometry per grenade for the life of the session; this is the guard.
         leak = page.evaluate("""() => {
